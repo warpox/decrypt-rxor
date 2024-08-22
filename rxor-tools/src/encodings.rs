@@ -37,6 +37,59 @@ impl Raw {
     pub fn get(&self) -> &Vec<u8> {
         &self.0
     }
+
+    /// determines the bit-level hamming distance between two Raw sequences
+    pub fn hamming(&self, other: &Self) -> usize {
+        let mut distance = 0;
+
+        for (l, r) in self.0.iter().zip(other.0.iter()) {
+            for b in 0..8 {
+                let bit = 1 << b;
+
+                if (l & bit) != (r & bit) {
+                    distance += 1;
+                }
+            }
+        }
+
+        distance
+    }
+
+    /// normalized hamming function (divide through by bits)
+    pub fn hamming_normalized(&self, other: &Self) -> f32 {
+        self.hamming(other) as f32 / (8.0 * self.len() as f32)
+    }
+
+    /// get iter to u8s
+    pub fn iter(&self) -> core::slice::Iter<'_, u8> {
+        self.0.iter()
+    }
+
+    /// len of internal vec
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+}
+
+impl std::ops::Index<usize> for Raw {
+    type Output = u8;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.0[index]
+    }
+}
+
+impl From<Vec<u8>> for Raw {
+    fn from(value: Vec<u8>) -> Self {
+        Raw(value)
+    }
+}
+
+impl From<&[u8]> for Raw {
+    fn from(value: &[u8]) -> Self {
+        Raw(Vec::from_iter(value.iter().cloned()))
+    }
 }
 
 impl Ascii {
@@ -259,7 +312,7 @@ impl Decode for Base64 {
         let mut v = Vec::new();
 
         // need to combine groups of 6 into groups of 8
-        let padding_bits = 2 * self.0.chars().filter(|c| *c == '=').count();
+        //let padding_bits = 2 * self.0.chars().filter(|c| *c == '=').count();
 
         // take it in 6 bits at a time
         let mut bit_index = 0;
@@ -450,5 +503,14 @@ mod test {
         test_ascii_b64(ascii3);
         test_ascii_b64(ascii4);
         test_ascii_b64(ascii5);
+    }
+
+    #[test]
+    fn test_hamming() {
+        let lhs = Ascii::new("this is a test".to_string()).unwrap();
+        let rhs = Ascii::new("wokka wokka!!!".to_string()).unwrap();
+
+        assert_eq!(lhs.decode().hamming(&rhs.decode()), 37);
+
     }
 }
